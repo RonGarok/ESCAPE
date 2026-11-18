@@ -1,0 +1,47 @@
+{
+  "seed": 1337,
+  "paths": {
+    "data_dir": "data",
+    "memory_db": "data/memory.db",
+    "knowledge_db": "data/knowledge.db",
+    "evolution_dir": "data/evolution",
+    "eval_dir": "data/evals",
+    "logs_dir": "logs"
+  },
+  "cognition": {
+    "gamma": 0.92,
+    "learning_rate": 0.25,
+    "epsilon_start": 0.5,
+    "epsilon_min": 0.03,
+    "epsilon_decay": 0.995,
+    "novelty_bonus": 0.05,
+    "use_planner": true,
+    "use_patterns": true,
+    "planner_horizon": 500
+  },
+  "training": {
+    "episodes_per_generation": 250,
+    "max_steps_per_episode": 250,
+    "generations": 2
+  },
+  "evolution": {
+    "enabled": true,
+    "trials_per_candidate": 3,
+    "candidates_per_generation": 4
+  },
+  "evaluation": {
+    "eval_episodes_per_task": 4,
+    "metrics": [
+      "success_rate",
+      "avg_steps",
+      "errors",
+      "retention",
+      "novel_task_success",
+      "planning_score"
+    ]
+  },
+  "interface": {
+    "refresh_hz": 4,
+    "obs_mode": false
+  }
+}
