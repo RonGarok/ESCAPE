@@ -43,12 +43,18 @@ class QLearning:
     def save(self) -> None:
         os.makedirs(os.path.dirname(self.checkpoint_path) or ".", exist_ok=True)
         with open(self.checkpoint_path, "wb") as fh:
-            pickle.dump(self.Q, fh)
+            pickle.dump({"Q": self.Q, "epsilon": self.epsilon}, fh)
 
     def load(self) -> None:
         if os.path.exists(self.checkpoint_path):
             with open(self.checkpoint_path, "rb") as fh:
-                self.Q = pickle.load(fh)
+                data = pickle.load(fh)
+            if isinstance(data, dict) and "Q" in data:
+                self.Q = data["Q"]
+                self.epsilon = max(self.epsilon_min,
+                                   float(data.get("epsilon", self.epsilon)))
+            else:
+                self.Q = data  # legacy checkpoint format
 
     def stats(self) -> dict:
         visited = len(self.Q)

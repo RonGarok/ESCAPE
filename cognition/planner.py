@@ -5,8 +5,8 @@ has actually observed.
 """
 from __future__ import annotations
 
-from collections import defaultdict, deque
-from typing import Dict, Tuple, List
+from collections import defaultdict
+from typing import Dict, Tuple, List, Optional
 
 
 class LearnedPlanner:
@@ -25,13 +25,16 @@ class LearnedPlanner:
     def known_transition(self, state_key, action) -> bool:
         return (state_key, action) in self.transitions
 
-    def propose(self, state_key, candidates: List[str]) -> str:
-        """One-step greedy on learned transition values + successor value."""
+    def propose(self, state_key, candidates: List[str]):
+        """One-step greedy on learned transition values; returns None when the
+        model knows nothing usable about this state (caller falls back)."""
         best, best_score = None, -1e9
+        known_any = False
         for action in candidates:
             key = (state_key, action)
             known = self.transitions.get(key)
             if known:
+                known_any = True
                 next_key, reward = known
                 successor_bonus = -self.visits[next_key] * 0.01
                 q_value = self.action_values[key]
@@ -41,7 +44,7 @@ class LearnedPlanner:
                 score = 0.1
             if score > best_score:
                 best_score, best = score, action
-        return best if best is not None else "wait"
+        return best if known_any else None
 
     def update_value(self, state_key, action, target: float, lr: float = 0.3) -> None:
         key = (state_key, action)

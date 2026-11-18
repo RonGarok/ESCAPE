@@ -25,6 +25,9 @@ class EvaluationSuite:
         seed = cfg.get("seed", 0)
         self.holdout = make_world_general(seed, cfg["paths"]["data_dir"])
 
+    def adaptation_episodes(self, world, n: int) -> List[Dict]:
+        return self._episodes(world, n, train=True)
+
     def _episodes(self, world, n: int, max_steps: Optional[int] = None,
                   train: bool = False) -> List[Dict]:
         ms = max_steps or self.cfg["training"]["max_steps_per_episode"]
@@ -33,15 +36,26 @@ class EvaluationSuite:
             out.append(self.engine.run_episode(world, ms, train=train))
         return out
 
+    def _measured(self, world, n: int) -> List[Dict]:
+        """Measurement episodes: exploration frozen near-deterministic so the
+        numbers reflect the learned policy, not exploration noise."""
+        agent = self.engine.agent
+        kept = agent.q.epsilon
+        agent.q.epsilon = min(agent.q.epsilon, 0.05)
+        try:
+            return self._episodes(world, n)
+        finally:
+            agent.q.epsilon = kept
+
     def rollout(self, record: bool = True, generation: int = 0) -> Dict:
         train_world = self.engine.test_world
         unseen, openw = self.holdout[0], self.holdout[1]
         n = self.cfg["evaluation"]["eval_episodes_per_task"]
         adapt = max(5, n)  # adaptation episodes on the novel world (learning on)
-        e_train = self._episodes(train_world, n)
-        self._episodes(unseen, adapt, train=True)   # adaptation phase
-        e_unseen = self._episodes(unseen, n)        # cold test after adaptation
-        e_open = self._episodes(openw, n)
+        e_train = self._measured(train_world, n)
+        self.adaptation_episodes(unseen, adapt)       # adaptation phase
+        e_unseen = self._measured(unseen, n)          # cold test after adaptation
+        e_open = self._measured(openw, n)
         summary = {
             "trained_task": metrics.summarize(e_train),
             "novel_task": metrics.summarize(e_unseen),
@@ -58,15 +72,16 @@ class EvaluationSuite:
                                             "novel": e_unseen, "open": e_open}}
 
     def planning_ab_test(self) -> Dict:
-        """Compare agent with and without its learned planner (same world/seed)."""
+        """Compare agent with and without its learned planner (same world/seed,
+        same frozen-exploration protocol)."""
         agent = self.engine.agent
         world = self.engine.test_world
         prev = agent.use_planner
         n = max(2, self.cfg["evaluation"]["eval_episodes_per_task"])
         agent.use_planner = True
-        with_plan = self._episodes(world, n)
+        with_plan = self._measured(world, n)
         agent.use_planner = False
-        without_plan = self._episodes(world, n)
+        without_plan = self._measured(world, n)
         agent.use_planner = prev
         return {
             "with_planner": metrics.summarize(with_plan),

@@ -51,9 +51,11 @@ class Agent:
         row = self.q._row(state_key)
         if self.rng.random() < self.q.epsilon:
             # directed exploration: prefer the learned-transition model when
-            # available, otherwise uniform random
+            # it knows something usable here, otherwise uniform random
             if self.use_planner and self.rng.random() < 0.6:
-                return self.planner.propose(state_key, self.actions)
+                proposal = self.planner.propose(state_key, self.actions)
+                if proposal is not None:
+                    return proposal
             return self.rng.choice(self.actions)
         action = max(row.items(), key=lambda kv: kv[1])[0]
         if self.use_patterns and self.patterns.repeated_failure(state_key, action, 3):
